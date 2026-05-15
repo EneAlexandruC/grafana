@@ -109,7 +109,11 @@ func newStore(cfg *setting.Cfg, engine *xorm.Engine, features featuremgmt.Featur
 		return nil, fmt.Errorf("%v: %w", "failed to connect to database", err)
 	}
 
-	ss.dialect = migrator.NewDialect(ss.engine.DriverName())
+	ss.dialect = migrator.NewDialect(ss.engine.DriverName(), migrator.DialectOptions{
+		MySQLEngine:    ss.dbCfg.MySQLEngine,
+		MySQLCharset:   ss.dbCfg.MySQLCharset,
+		MySQLCollation: ss.dbCfg.MySQLCollation,
+	})
 
 	// if err := ss.Reset(); err != nil {
 	// 	return nil, err
