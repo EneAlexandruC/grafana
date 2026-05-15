@@ -19,13 +19,28 @@ import (
 
 type MySQLDialect struct {
 	BaseDialect
+	engine    string
+    charset   string
+    collation string
 }
 
 func NewMysqlDialect() Dialect {
-	d := MySQLDialect{}
-	d.dialect = &d
-	d.driverName = MySQL
-	return &d
+    return NewMysqlDialectWithOptions(DialectOptions{
+        MySQLEngine:    "InnoDB",
+        MySQLCharset:   "utf8mb4",
+        MySQLCollation: "utf8mb4_unicode_ci",
+    })
+}
+
+func NewMysqlDialectWithOptions(opt DialectOptions) Dialect {
+    d := &MySQLDialect{
+        engine:    opt.MySQLEngine,
+        charset:   opt.MySQLCharset,
+        collation: opt.MySQLCollation,
+    }
+    d.dialect = d
+    d.driverName = MySQL
+    return d
 }
 
 func (db *MySQLDialect) SupportEngine() bool {
@@ -56,6 +71,11 @@ func (db *MySQLDialect) BooleanStr(value bool) string {
 
 func (db *MySQLDialect) BatchSize() int {
 	return 1000
+}
+
+func (db *MySQLDialect) TableSuffix() string {
+    return fmt.Sprintf("ENGINE=%s DEFAULT CHARSET %s COLLATE %s",
+        db.engine, db.charset, db.collation)
 }
 
 func (db *MySQLDialect) SQLType(c *Column) string {
@@ -107,7 +127,7 @@ func (db *MySQLDialect) SQLType(c *Column) string {
 		if c.IsLatin {
 			res += " CHARACTER SET latin1 COLLATE latin1_bin"
 		} else {
-			res += " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+			res += fmt.Sprintf(" CHARACTER SET %s COLLATE %s", db.charset, db.collation)
 		}
 	}
 
@@ -117,7 +137,7 @@ func (db *MySQLDialect) SQLType(c *Column) string {
 func (db *MySQLDialect) UpdateTableSQL(tableName string, columns []*Column) string {
 	statements := make([]string, 0, 1+len(columns))
 
-	statements = append(statements, "DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+	statements = append(statements, fmt.Sprintf("DEFAULT CHARACTER SET %s COLLATE %s", db.charset, db.collation))
 
 	for _, col := range columns {
 		statements = append(statements, "MODIFY "+col.StringNoPk(db))
@@ -405,3 +425,4 @@ func (s *MySQLDialect) executeStatements(engine *xorm.Engine, statements []strin
 	}
 	return nil
 }
+
