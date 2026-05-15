@@ -45,9 +45,13 @@ type DatabaseConfig struct {
 	LogQueries                  bool
 	DeleteAutoGenIDs            bool
 	// SQLite only
-	QueryRetries int
+	QueryRetries 				int
 	// SQLite only
-	TransactionRetries int
+	TransactionRetries 			int
+	// MySQL-specific DDL settings
+    MySQLEngine                 string
+    MySQLCharset                string
+    MySQLCollation              string
 }
 
 func NewDatabaseConfig(cfg *setting.Cfg, features featuremgmt.FeatureToggles) (*DatabaseConfig, error) {
@@ -129,6 +133,10 @@ func (dbCfg *DatabaseConfig) readConfig(cfg *setting.Cfg) error {
 	dbCfg.LogQueries = sec.Key("log_queries").MustBool(false)
 	dbCfg.DeleteAutoGenIDs = sec.Key("delete_auto_gen_ids").MustBool(false)
 
+	dbCfg.MySQLEngine = sec.Key("mysql_engine").MustString("InnoDB")
+    dbCfg.MySQLCharset = sec.Key("mysql_charset").MustString("utf8mb4")
+    dbCfg.MySQLCollation = sec.Key("mysql_collation").MustString("utf8mb4_unicode_ci")
+
 	return nil
 }
 
@@ -146,8 +154,8 @@ func (dbCfg *DatabaseConfig) buildConnectionString(cfg *setting.Cfg, features fe
 			protocol = "unix"
 		}
 
-		cnnstr = fmt.Sprintf("%s:%s@%s(%s)/%s?collation=utf8mb4_unicode_ci&allowNativePasswords=true&clientFoundRows=true&parseTime=true",
-			dbCfg.User, dbCfg.Pwd, protocol, dbCfg.Host, dbCfg.Name)
+		cnnstr = fmt.Sprintf("%s:%s@%s(%s)/%s?collation=%s&allowNativePasswords=true&clientFoundRows=true&parseTime=true",
+			dbCfg.User, dbCfg.Pwd, protocol, dbCfg.Host, dbCfg.Name, dbCfg.MySQLCollation)
 
 		if dbCfg.SslMode == "true" || dbCfg.SslMode == "skip-verify" {
 			tlsCert, err := makeCert(dbCfg)
