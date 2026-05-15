@@ -106,6 +106,9 @@ type Dialect interface {
 	// Implementations are not expected to quote the arguments
 	// therefore any callers should take care to quote arguments as necessary
 	Concat(...string) string
+
+	// Used for MySQL table metadata
+	TableSuffix() string
 }
 
 type LockCfg struct {
@@ -125,7 +128,28 @@ var supportedDialects = map[string]dialectFunc{
 	Postgres + "WithHooks": NewPostgresDialect,
 }
 
-func NewDialect(driverName string) Dialect {
+type DialectOptions struct {
+    MySQLEngine    string
+    MySQLCharset   string
+    MySQLCollation string
+}
+
+func NewDialect(driverName string, opts ...DialectOptions) Dialect {
+    opt := DialectOptions{
+        MySQLEngine:    "InnoDB",
+        MySQLCharset:   "utf8mb4",
+        MySQLCollation: "utf8mb4_unicode_ci",
+    }
+
+    if len(opts) > 0 {
+        opt = opts[0]
+    }
+
+    switch driverName {
+    case MySQL, MySQL + "WithHooks":
+        return NewMysqlDialectWithOptions(opt)
+    }
+
 	if fn, exist := supportedDialects[driverName]; exist {
 		return fn()
 	}
@@ -212,7 +236,7 @@ func (b *BaseDialect) CreateTableSQL(table *Table) string {
 
 	sql = sql[:len(sql)-2] + ")"
 	if b.dialect.SupportEngine() {
-		sql += " ENGINE=InnoDB DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci"
+		sql += " " + b.dialect.TableSuffix()
 	}
 
 	sql += ";"
@@ -483,4 +507,8 @@ func (b *BaseDialect) UnionDistinct() string {
 
 func (b *BaseDialect) UnionAll() string {
 	return "UNION ALL"
+}
+
+func (b *BaseDialect) TableSuffix() string { 
+	return "" 
 }
